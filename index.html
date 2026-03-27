@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Melbourne Beach Landscape Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-primary: #0a1628;
+  --bg-card: #111d33;
+  --bg-input: #162036;
+  --accent: #34d399;
+  --accent-hover: #6ee7b7;
+  --accent-glow: rgba(52, 211, 153, 0.15);
+  --text-primary: #f0f4f8;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border: #1e3050;
+  --transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -20%, rgba(52, 211, 153, 0.06), transparent),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(59, 130, 246, 0.04), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.progress-container { position: fixed; top: 0; left: 0; right: 0; height: 4px; background: var(--border); z-index: 100; }
+.progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), #3b82f6); transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1); border-radius: 0 2px 2px 0; box-shadow: 0 0 20px rgba(52, 211, 153, 0.3); }
+
+.header { position: fixed; top: 16px; left: 24px; right: 24px; display: flex; justify-content: space-between; align-items: center; z-index: 50; pointer-events: none; }
+.question-counter { font-size: 13px; font-weight: 500; color: var(--text-muted); letter-spacing: 0.5px; pointer-events: auto; }
+
+.survey-container { position: relative; width: 100%; height: 100%; z-index: 1; }
+
+.slide {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  padding: 80px 24px 120px; opacity: 0; transform: translateY(40px);
+  pointer-events: none; transition: opacity var(--transition), transform var(--transition); overflow-y: auto;
+  scrollbar-width: none;
+}
+.slide::-webkit-scrollbar { display: none; }
+.slide.active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.slide.exit-up { opacity: 0; transform: translateY(-40px); }
+.slide-inner { width: 100%; max-width: 640px; }
+
+.q-number { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--accent); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 16px; }
+.q-title { font-size: clamp(22px, 4vw, 32px); font-weight: 600; line-height: 1.3; margin-bottom: 8px; letter-spacing: -0.3px; }
+.q-subtitle { font-size: 15px; color: var(--text-secondary); margin-bottom: 32px; line-height: 1.5; }
+
+.scale-container { display: flex; gap: 12px; margin-bottom: 12px; }
+.scale-labels { display: flex; justify-content: space-between; margin-bottom: 32px; }
+.scale-labels span { font-size: 12px; color: var(--text-muted); max-width: 120px; }
+.scale-btn {
+  flex: 1; aspect-ratio: 1; max-width: 80px; border: 2px solid var(--border); border-radius: 16px;
+  background: var(--bg-card); color: var(--text-primary); font-size: 20px; font-weight: 600;
+  cursor: pointer; transition: all 0.25s ease; display: flex; align-items: center; justify-content: center;
+}
+.scale-btn:hover { border-color: var(--accent); background: var(--accent-glow); transform: translateY(-2px); }
+.scale-btn.selected { border-color: var(--accent); background: var(--accent); color: var(--bg-primary); box-shadow: 0 0 30px rgba(52, 211, 153, 0.25); transform: translateY(-2px); }
+
+.choices { display: flex; flex-direction: column; gap: 10px; }
+.choice-btn {
+  display: flex; align-items: center; gap: 14px; padding: 16px 20px; border: 1.5px solid var(--border);
+  border-radius: 12px; background: var(--bg-card); color: var(--text-primary); font-size: 15px;
+  font-weight: 400; cursor: pointer; transition: all 0.2s ease; text-align: left; line-height: 1.4;
+}
+.choice-btn:hover { border-color: var(--accent); background: var(--accent-glow); }
+.choice-btn.selected { border-color: var(--accent); background: rgba(52, 211, 153, 0.1); }
+.choice-key {
+  display: flex; align-items: center; justify-content: center; min-width: 28px; height: 28px;
+  border-radius: 6px; border: 1.5px solid var(--border); font-size: 12px; font-weight: 600;
+  color: var(--text-muted); transition: all 0.2s ease; flex-shrink: 0;
+}
+.choice-btn.selected .choice-key { background: var(--accent); border-color: var(--accent); color: var(--bg-primary); }
+
+.text-input {
+  width: 100%; padding: 16px 0; border: none; border-bottom: 2px solid var(--border);
+  background: transparent; color: var(--text-primary); font-size: 20px; font-family: inherit;
+  font-weight: 400; outline: none; transition: border-color 0.3s ease;
+}
+.text-input:focus { border-bottom-color: var(--accent); }
+.text-input::placeholder { color: var(--text-muted); }
+textarea.text-input { resize: none; min-height: 120px; line-height: 1.6; font-size: 16px; }
+
+.other-input-wrap { margin-top: 10px; overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.3s ease, opacity 0.3s ease; }
+.other-input-wrap.visible { max-height: 80px; opacity: 1; }
+.other-input-wrap input {
+  width: 100%; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 10px;
+  background: var(--bg-input); color: var(--text-primary); font-size: 14px; font-family: inherit;
+  outline: none; transition: border-color 0.3s;
+}
+.other-input-wrap input:focus { border-color: var(--accent); }
+.other-input-wrap input::placeholder { color: var(--text-muted); }
+
+.contact-fields { display: flex; flex-direction: column; gap: 24px; }
+.field-group label { display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 8px; letter-spacing: 0.3px; }
+
+.nav-container { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; z-index: 50; }
+.nav-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 28px;
+  border: none; border-radius: 12px; font-size: 15px; font-weight: 600; font-family: inherit;
+  cursor: pointer; transition: all 0.25s ease;
+}
+.nav-btn.primary { background: var(--accent); color: var(--bg-primary); }
+.nav-btn.primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 8px 30px rgba(52, 211, 153, 0.3); }
+.nav-btn.secondary { background: var(--bg-card); color: var(--text-secondary); border: 1.5px solid var(--border); padding: 14px 18px; }
+.nav-btn.secondary:hover { border-color: var(--text-muted); color: var(--text-primary); }
+.nav-hint { font-size: 12px; color: var(--text-muted); margin-left: 4px; }
+
+.intro-slide .q-title { font-size: clamp(28px, 5vw, 44px); font-weight: 700; letter-spacing: -0.5px; margin-bottom: 16px; }
+.intro-slide .q-subtitle { font-size: 17px; max-width: 500px; }
+.intro-badge { display: inline-block; padding: 6px 14px; border-radius: 100px; background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.2); font-size: 13px; font-weight: 500; color: var(--accent); margin-bottom: 24px; }
+.outro-icon { font-size: 48px; margin-bottom: 24px; }
+
+.start-over-link {
+  display: inline-flex; align-items: center; gap: 8px; margin-top: 32px; padding: 12px 24px;
+  border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg-card);
+  color: var(--text-secondary); font-size: 14px; font-weight: 500; cursor: pointer;
+  transition: all 0.2s ease; text-decoration: none; font-family: inherit;
+}
+.start-over-link:hover { border-color: var(--accent); color: var(--text-primary); }
+
+@media (max-width: 600px) {
+  .scale-container { gap: 8px; }
+  .scale-btn { max-width: 60px; border-radius: 12px; font-size: 18px; }
+  .nav-container { bottom: 24px; }
+  .nav-hint { display: none; }
+  .slide { padding: 60px 20px 100px; }
+}
+
+.choice-btn:focus-visible, .scale-btn:focus-visible, .nav-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.slide.active .slide-inner { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both; }
+</style>
+</head>
+<body>
+
+<div class="progress-container">
+  <div class="progress-bar" id="progressBar"></div>
+</div>
+
+<div class="header">
+  <span class="question-counter" id="questionCounter"></span>
+</div>
+
+<div class="survey-container" id="surveyContainer"></div>
+
+<div class="nav-container" id="navContainer">
+  <button class="nav-btn secondary" id="btnPrev" style="display:none;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <button class="nav-btn primary" id="btnNext">
+    Start <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
+  <span class="nav-hint" id="navHint">press <strong>Enter</strong></span>
+</div>
+
+<script>
+// ─── SUPABASE CONFIG ────────────────────────────────
+var SUPABASE_URL = 'https://bvmyrgmdpxuizasrvsul.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ2bXlyZ21kcHh1aXphc3J2c3VsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE1MDAyNzUsImV4cCI6MjA4NzA3NjI3NX0.mD1fhY4zYUUPh2nY4_6FTElmoOyv6K6So_V_W102XaM';
+
+// ─── SURVEY DEFINITION ─────────────────────────────
+var questions = [
+  {
+    id: 'intro', type: 'intro',
+    title: 'Melbourne Beach Landscape Survey',
+    subtitle: "The Environmental Advisory Board wants to hear from you. Help shape the future of our community's landscape standards.",
+    badge: 'Town of Melbourne Beach', noSave: true
+  },
+  {
+    id: 'residency', type: 'single',
+    title: 'Which of the following applies to you?',
+    subtitle: 'Select the option that best describes your connection to Melbourne Beach.',
+    choices: [
+      'I live in the Town of Melbourne Beach',
+      'I own property in Town that I lease to others',
+      'I operate a business in Melbourne Beach',
+      'I play in Melbourne Beach',
+      'None of the above'
+    ]
+  },
+  {
+    id: 'street_name', type: 'text',
+    title: 'What street do you live on?',
+    subtitle: 'This helps us understand neighborhood-level perspectives.',
+    placeholder: 'Street name',
+    showIf: function() { return answers.residency === 'I live in the Town of Melbourne Beach'; }
+  },
+  {
+    id: 'shaded_streets', type: 'scale',
+    title: 'How important are shaded streets for your enjoyment of walking, running, and cycling?',
+    lowLabel: 'Not important', highLabel: 'Very important'
+  },
+  {
+    id: 'lagoon_health', type: 'scale',
+    title: 'How important is the clarity and quality of the Indian River Lagoon?',
+    lowLabel: 'Not important', highLabel: 'Very important'
+  },
+  {
+    id: 'native_familiarity', type: 'scale',
+    title: 'How would you rate your ability to recognize plants native to our area?',
+    lowLabel: 'Not at all familiar', highLabel: 'Very familiar'
+  },
+  {
+    id: 'invasive_identify', type: 'multi',
+    title: 'Which invasive plant species can you identify?',
+    subtitle: 'Select all that apply.',
+    choices: ['Brazilian pepper','Melaleuca','Australian pine','Carrotwood','Schefflera','I am not familiar with invasive plants'],
+    hasOther: true, otherPlaceholder: 'Other species you can identify...',
+    exclusive: 'I am not familiar with invasive plants'
+  },
+  {
+    id: 'native_attributes', type: 'multi',
+    title: 'Which of these do you believe are attributes of native plants?',
+    subtitle: 'Select all that apply.',
+    choices: [
+      'Support ecological diversity (birds, pollinators, wildlife)',
+      'Reduce flooding and stormwater runoff',
+      'Lower long-term yard maintenance needs',
+      'Reduce irrigation and water use',
+      'Provide appealing aesthetics',
+      'Increase property value',
+      'Improve climate resiliency (storm resistance, drought tolerance)',
+      'I am not aware of the benefits of native plants'
+    ],
+    hasOther: true, otherPlaceholder: 'Other attributes...',
+    exclusive: 'I am not aware of the benefits of native plants'
+  },
+  {
+    id: 'native_use', type: 'single',
+    title: 'Do you currently use native plants in your landscaping?',
+    choices: ['Yes, I have many native plants','Yes, I have some native plants',"No, I don't have any native plants that I'm aware of"]
+  },
+  {
+    id: 'barriers', type: 'multi',
+    title: 'What challenges prevent you from planting native plants?',
+    subtitle: 'Select all that apply.',
+    choices: [
+      'I am not familiar with native plants',
+      'I kept what the prior owner/developer planted',
+      "I don't know where to buy native plants",
+      "I don't know which native plants to choose",
+      'Native plants cost too much',
+      "I don't like the look of native plants"
+    ],
+    hasOther: true, otherPlaceholder: 'Other challenges...',
+    hasFollowUp: 5, followUpPlaceholder: "What about their look doesn't appeal to you?"
+  },
+  {
+    id: 'ordinance_support', type: 'scale',
+    title: 'How supportive would you be of the Town adopting updated landscaping standards that specify healthy, large native trees are retained when not in the way of permittable construction?',
+    lowLabel: 'Strongly oppose', highLabel: 'Strongly support'
+  },
+  {
+    id: 'learn_more', type: 'multi',
+    title: 'Would you like to learn more about native and invasive plants?',
+    subtitle: 'Select all that apply.',
+    choices: ['I would participate in an educational workshop','I would like to see more educational materials',"No thanks, I'm good"],
+    exclusive: "No thanks, I'm good"
+  },
+  {
+    id: 'contact', type: 'contact',
+    title: 'Want to stay in the loop?',
+    subtitle: "Leave your info if you'd like updates on survey results or upcoming workshops. Totally optional."
+  },
+  {
+    id: 'comments', type: 'textarea',
+    title: 'Any additional comments or thoughts?',
+    subtitle: "We'd love to hear anything else on your mind.",
+    placeholder: 'Share your thoughts...'
+  },
+  {
+    id: 'outro', type: 'outro',
+    title: 'Thank you!',
+    subtitle: "Your response has been recorded. Your input will help the Environmental Advisory Board shape landscape policies that benefit our entire community.",
+    noSave: true
+  }
+];
+
+// ─── STATE ──────────────────────────────────────────
+var currentSlide = 0;
+var answers = {};
+var submitted = false;
+var sessionId = generateId(); // Fresh session every time (no resume)
+
+// Check if already submitted in this browser
+if (localStorage.getItem('survey_submitted')) {
+  submitted = true;
+}
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+}
+
+// ─── DOM HELPERS ────────────────────────────────────
+function el(tag, attrs, children) {
+  var node = document.createElement(tag);
+  if (attrs) {
+    Object.keys(attrs).forEach(function(k) {
+      if (k === 'className') node.className = attrs[k];
+      else if (k === 'textContent') node.textContent = attrs[k];
+      else if (k.indexOf('on') === 0) node.addEventListener(k.slice(2).toLowerCase(), attrs[k]);
+      else if (k === 'style' && typeof attrs[k] === 'object') Object.assign(node.style, attrs[k]);
+      else node.setAttribute(k, attrs[k]);
+    });
+  }
+  if (children) {
+    if (!Array.isArray(children)) children = [children];
+    children.forEach(function(c) {
+      if (typeof c === 'string') node.appendChild(document.createTextNode(c));
+      else if (c) node.appendChild(c);
+    });
+  }
+  return node;
+}
+
+// ─── BUILD SLIDES ───────────────────────────────────
+function buildSlides() {
+  var container = document.getElementById('surveyContainer');
+
+  questions.forEach(function(q, i) {
+    var slide = el('div', { className: 'slide' + (i === 0 ? ' active' : ''), 'data-index': String(i) });
+    var inner = el('div', { className: 'slide-inner' });
+
+    if (q.type === 'intro') {
+      inner.appendChild(el('div', { className: 'intro-slide' }, [
+        el('div', { className: 'intro-badge', textContent: q.badge }),
+        el('h1', { className: 'q-title', textContent: q.title }),
+        el('p', { className: 'q-subtitle', textContent: q.subtitle })
+      ]));
+    } else if (q.type === 'outro') {
+      var outroDiv = el('div', { className: 'intro-slide' }, [
+        el('div', { className: 'outro-icon', textContent: '\uD83C\uDF3F' }),
+        el('h1', { className: 'q-title', textContent: q.title }),
+        el('p', { className: 'q-subtitle', textContent: q.subtitle })
+      ]);
+      var startOverBtn = el('button', {
+        className: 'start-over-link',
+        textContent: 'Take the survey again',
+        onClick: function() { startOver(); }
+      });
+      outroDiv.appendChild(startOverBtn);
+      inner.appendChild(outroDiv);
+    } else {
+      var qNum = getVisibleQuestionNumber(i);
+      inner.appendChild(el('div', { className: 'q-number' }, [String(qNum), el('span', { className: 'arrow', textContent: '\u2192' })]));
+      inner.appendChild(el('h2', { className: 'q-title', textContent: q.title }));
+      if (q.subtitle) inner.appendChild(el('p', { className: 'q-subtitle', textContent: q.subtitle }));
+
+      if (q.type === 'scale') {
+        var scaleRow = el('div', { className: 'scale-container' });
+        for (var s = 1; s <= 5; s++) {
+          (function(val) {
+            var btn = el('button', {
+              className: 'scale-btn', 'data-value': String(val), textContent: String(val),
+              onClick: function() { selectScale(q.id, val, this); }
+            });
+            scaleRow.appendChild(btn);
+          })(s);
+        }
+        inner.appendChild(scaleRow);
+        inner.appendChild(el('div', { className: 'scale-labels' }, [
+          el('span', { textContent: q.lowLabel }), el('span', { textContent: q.highLabel })
+        ]));
+      }
+
+      if (q.type === 'single') {
+        var choicesDiv = el('div', { className: 'choices' });
+        q.choices.forEach(function(c, ci) {
+          var key = String.fromCharCode(65 + ci);
+          var keySpan = el('span', { className: 'choice-key' }, [el('span', { className: 'key-letter', textContent: key })]);
+          choicesDiv.appendChild(el('button', {
+            className: 'choice-btn', 'data-value': c,
+            onClick: function() { selectSingle(q.id, this); }
+          }, [keySpan, el('span', { textContent: c })]));
+        });
+        inner.appendChild(choicesDiv);
+      }
+
+      if (q.type === 'multi') {
+        var mChoicesDiv = el('div', { className: 'choices multi' });
+        q.choices.forEach(function(c, ci) {
+          var key = String.fromCharCode(65 + ci);
+          var keySpan = el('span', { className: 'choice-key' }, [el('span', { className: 'key-letter', textContent: key })]);
+          var isExclusive = (c === q.exclusive);
+          mChoicesDiv.appendChild(el('button', {
+            className: 'choice-btn', 'data-value': c, 'data-exclusive': String(isExclusive),
+            onClick: function() { selectMulti(q.id, this, q.exclusive || ''); }
+          }, [keySpan, el('span', { textContent: c })]));
+
+          if (q.hasFollowUp === ci) {
+            var followWrap = el('div', { className: 'other-input-wrap', 'data-followup': q.id + '_followup' });
+            followWrap.appendChild(el('input', {
+              type: 'text', placeholder: q.followUpPlaceholder, value: '',
+              onInput: function() { answers[q.id + '_followup'] = this.value; saveLocal(); }
+            }));
+            mChoicesDiv.appendChild(followWrap);
+          }
+        });
+        if (q.hasOther) {
+          var otherKey = String.fromCharCode(65 + q.choices.length);
+          var otherKeySpan = el('span', { className: 'choice-key' }, [el('span', { className: 'key-letter', textContent: otherKey })]);
+          mChoicesDiv.appendChild(el('button', {
+            className: 'choice-btn', 'data-value': '__other__',
+            onClick: function() { toggleOther(q.id, this); }
+          }, [otherKeySpan, el('span', { textContent: 'Other' })]));
+          var otherWrap = el('div', { className: 'other-input-wrap', 'data-other': q.id });
+          otherWrap.appendChild(el('input', {
+            type: 'text', placeholder: q.otherPlaceholder, value: '',
+            onInput: function() { answers[q.id + '_other'] = this.value; saveLocal(); }
+          }));
+          mChoicesDiv.appendChild(otherWrap);
+        }
+        inner.appendChild(mChoicesDiv);
+      }
+
+      if (q.type === 'text') {
+        inner.appendChild(el('input', {
+          type: 'text', className: 'text-input', placeholder: q.placeholder || 'Type your answer...',
+          value: '', onInput: function() { answers[q.id] = this.value; saveLocal(); }
+        }));
+      }
+
+      if (q.type === 'textarea') {
+        inner.appendChild(el('textarea', {
+          className: 'text-input', placeholder: q.placeholder || 'Type your answer...',
+          onInput: function() { answers[q.id] = this.value; saveLocal(); }
+        }));
+      }
+
+      if (q.type === 'contact') {
+        var fields = el('div', { className: 'contact-fields' });
+        [
+          { key: 'contact_name', label: 'Name', placeholder: 'Your name', type: 'text' },
+          { key: 'contact_email', label: 'Email', placeholder: 'your@email.com', type: 'email' },
+          { key: 'contact_phone', label: 'Phone', placeholder: '(555) 555-5555', type: 'tel' }
+        ].forEach(function(f) {
+          var group = el('div', { className: 'field-group' });
+          group.appendChild(el('label', { textContent: f.label }));
+          group.appendChild(el('input', {
+            type: f.type, className: 'text-input', placeholder: f.placeholder, value: '',
+            onInput: function() { answers[f.key] = this.value; saveLocal(); }
+          }));
+          fields.appendChild(group);
+        });
+        inner.appendChild(fields);
+      }
+    }
+
+    slide.appendChild(inner);
+    container.appendChild(slide);
+  });
+}
+
+function getVisibleQuestionNumber(slideIndex) {
+  var count = 0;
+  for (var i = 0; i <= slideIndex; i++) {
+    if (questions[i].type !== 'intro' && questions[i].type !== 'outro') count++;
+  }
+  return count;
+}
+
+function getTotalQuestions() {
+  return questions.filter(function(q) { return q.type !== 'intro' && q.type !== 'outro'; }).length;
+}
+
+// ─── INTERACTIONS ───────────────────────────────────
+function selectScale(qid, value, btn) {
+  if (submitted) return;
+  answers[qid] = value;
+  saveLocal();
+  var siblings = btn.parentElement.querySelectorAll('.scale-btn');
+  for (var i = 0; i < siblings.length; i++) siblings[i].classList.remove('selected');
+  btn.classList.add('selected');
+  sendToSupabase();
+  setTimeout(function() { nextSlide(); }, 400);
+}
+
+function selectSingle(qid, btn) {
+  if (submitted) return;
+  var value = btn.getAttribute('data-value');
+  answers[qid] = value;
+  saveLocal();
+  var btns = btn.closest('.choices').querySelectorAll('.choice-btn');
+  for (var i = 0; i < btns.length; i++) btns[i].classList.remove('selected');
+  btn.classList.add('selected');
+  sendToSupabase();
+  setTimeout(function() { nextSlide(); }, 400);
+}
+
+function selectMulti(qid, btn, exclusiveValue) {
+  if (submitted) return;
+  var value = btn.getAttribute('data-value');
+  if (!answers[qid]) answers[qid] = [];
+
+  if (value === exclusiveValue && exclusiveValue) {
+    answers[qid] = [value];
+    var allBtns = btn.closest('.choices').querySelectorAll('.choice-btn');
+    for (var i = 0; i < allBtns.length; i++) allBtns[i].classList.remove('selected');
+    btn.classList.add('selected');
+    var otherWrap = btn.closest('.choices').querySelector('[data-other="' + qid + '"]');
+    if (otherWrap) { otherWrap.classList.remove('visible'); answers[qid + '_other'] = ''; }
+    var followWrap = btn.closest('.choices').querySelector('[data-followup="' + qid + '_followup"]');
+    if (followWrap) followWrap.classList.remove('visible');
+  } else {
+    answers[qid] = answers[qid].filter(function(v) { return v !== exclusiveValue; });
+    var exBtns = btn.closest('.choices').querySelectorAll('.choice-btn[data-exclusive="true"]');
+    for (var i = 0; i < exBtns.length; i++) exBtns[i].classList.remove('selected');
+
+    var idx = answers[qid].indexOf(value);
+    if (idx !== -1) { answers[qid].splice(idx, 1); btn.classList.remove('selected'); }
+    else { answers[qid].push(value); btn.classList.add('selected'); }
+
+    var q = questions.filter(function(x) { return x.id === qid; })[0];
+    if (q && q.hasFollowUp !== undefined) {
+      var fw = btn.closest('.choices').querySelector('[data-followup="' + qid + '_followup"]');
+      if (fw) {
+        if (answers[qid].indexOf(q.choices[q.hasFollowUp]) !== -1) fw.classList.add('visible');
+        else fw.classList.remove('visible');
+      }
+    }
+  }
+  saveLocal();
+  sendToSupabase();
+}
+
+function toggleOther(qid, btn) {
+  if (submitted) return;
+  var otherWrap = btn.closest('.choices').querySelector('[data-other="' + qid + '"]');
+  if (btn.classList.contains('selected')) {
+    btn.classList.remove('selected');
+    otherWrap.classList.remove('visible');
+    answers[qid + '_other'] = '';
+  } else {
+    var q = questions.filter(function(x) { return x.id === qid; })[0];
+    if (q && q.exclusive) {
+      answers[qid] = (answers[qid] || []).filter(function(v) { return v !== q.exclusive; });
+      var exBtns = btn.closest('.choices').querySelectorAll('.choice-btn[data-exclusive="true"]');
+      for (var i = 0; i < exBtns.length; i++) exBtns[i].classList.remove('selected');
+    }
+    btn.classList.add('selected');
+    otherWrap.classList.add('visible');
+    setTimeout(function() { var inp = otherWrap.querySelector('input'); if (inp) inp.focus(); }, 300);
+  }
+  saveLocal();
+}
+
+// ─── NAVIGATION ─────────────────────────────────────
+function getVisibleSlides() {
+  return questions.map(function(q, i) { return { q: q, i: i }; }).filter(function(item) {
+    if (item.q.showIf) return item.q.showIf();
+    return true;
+  });
+}
+
+function nextSlide() {
+  if (submitted && currentSlide < questions.length - 1) return; // locked after submit
+  var visible = getVisibleSlides();
+  var currentVisibleIdx = -1;
+  for (var i = 0; i < visible.length; i++) {
+    if (visible[i].i === currentSlide) { currentVisibleIdx = i; break; }
+  }
+  if (currentVisibleIdx < visible.length - 1) {
+    var nextIdx = visible[currentVisibleIdx + 1].i;
+    // If advancing to outro, this is a submission
+    if (questions[nextIdx].type === 'outro' && !submitted) {
+      submitSurvey();
+    }
+    goToSlide(nextIdx);
+  }
+}
+
+function prevSlide() {
+  if (submitted) return; // no going back after submit
+  var visible = getVisibleSlides();
+  var currentVisibleIdx = -1;
+  for (var i = 0; i < visible.length; i++) {
+    if (visible[i].i === currentSlide) { currentVisibleIdx = i; break; }
+  }
+  if (currentVisibleIdx > 0) {
+    goToSlide(visible[currentVisibleIdx - 1].i, true);
+  }
+}
+
+function goToSlide(index, reverse) {
+  var slides = document.querySelectorAll('.slide');
+  var current = slides[currentSlide];
+  var next = slides[index];
+
+  current.classList.remove('active');
+  if (!reverse) current.classList.add('exit-up');
+  setTimeout(function() { current.classList.remove('exit-up'); }, 500);
+
+  if (reverse) { next.style.transform = 'translateY(-40px)'; next.style.opacity = '0'; }
+  next.classList.add('active');
+  if (reverse) { requestAnimationFrame(function() { next.style.transform = ''; next.style.opacity = ''; }); }
+
+  currentSlide = index;
+  updateUI();
+  setTimeout(function() { var input = next.querySelector('.text-input'); if (input) input.focus(); }, 400);
+}
+
+function updateUI() {
+  var visible = getVisibleSlides();
+  var currentVisibleIdx = -1;
+  for (var i = 0; i < visible.length; i++) {
+    if (visible[i].i === currentSlide) { currentVisibleIdx = i; break; }
+  }
+  var total = visible.length;
+  var q = questions[currentSlide];
+
+  document.getElementById('progressBar').style.width = (currentVisibleIdx / (total - 1)) * 100 + '%';
+
+  var counter = document.getElementById('questionCounter');
+  counter.textContent = (q.type === 'intro' || q.type === 'outro') ? '' : getVisibleQuestionNumber(currentSlide) + ' of ' + getTotalQuestions();
+
+  var btnPrev = document.getElementById('btnPrev');
+  var btnNext = document.getElementById('btnNext');
+  var hint = document.getElementById('navHint');
+
+  // Hide back button on outro or if submitted
+  btnPrev.style.display = (currentVisibleIdx > 0 && !submitted && q.type !== 'outro') ? 'flex' : 'none';
+
+  while (btnNext.firstChild) btnNext.removeChild(btnNext.firstChild);
+
+  if (q.type === 'intro') {
+    btnNext.appendChild(document.createTextNode('Start '));
+    appendArrowSvg(btnNext);
+    btnNext.style.display = 'flex';
+    hint.style.display = '';
+  } else if (q.type === 'outro') {
+    btnNext.style.display = 'none';
+    hint.style.display = 'none';
+  } else if (currentVisibleIdx === total - 2) {
+    btnNext.appendChild(document.createTextNode('Submit '));
+    appendCheckSvg(btnNext);
+    btnNext.style.display = 'flex';
+    hint.style.display = '';
+  } else {
+    btnNext.appendChild(document.createTextNode('OK '));
+    appendCheckSvg(btnNext);
+    btnNext.style.display = 'flex';
+    hint.style.display = '';
+  }
+}
+
+function appendArrowSvg(parent) {
+  var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('width', '16'); s.setAttribute('height', '16'); s.setAttribute('viewBox', '0 0 24 24');
+  s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2.5');
+  s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
+  var p = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  p.setAttribute('points', '9 18 15 12 9 6'); s.appendChild(p); parent.appendChild(s);
+}
+
+function appendCheckSvg(parent) {
+  var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('width', '16'); s.setAttribute('height', '16'); s.setAttribute('viewBox', '0 0 24 24');
+  s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2.5');
+  s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
+  var p = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  p.setAttribute('points', '20 6 9 17 4 12'); s.appendChild(p); parent.appendChild(s);
+}
+
+// ─── KEYBOARD ───────────────────────────────────────
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    if (document.activeElement && document.activeElement.tagName === 'TEXTAREA') return;
+    e.preventDefault();
+    nextSlide();
+  }
+  if ((e.key === 'ArrowUp' || e.key === 'ArrowLeft') && !submitted) {
+    if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      prevSlide();
+    }
+  }
+  var q = questions[currentSlide];
+  if (q && (q.type === 'single' || q.type === 'multi') && !submitted) {
+    var key = e.key.toUpperCase();
+    var idx = key.charCodeAt(0) - 65;
+    var slide = document.querySelectorAll('.slide')[currentSlide];
+    var btns = slide.querySelectorAll('.choice-btn');
+    if (idx >= 0 && idx < btns.length) btns[idx].click();
+  }
+});
+
+// ─── PERSISTENCE & SUPABASE ─────────────────────────
+function saveLocal() {
+  localStorage.setItem('survey_answers_temp', JSON.stringify(answers));
+}
+
+function flattenAnswers() {
+  var flat = {};
+  Object.keys(answers).forEach(function(key) {
+    var val = answers[key];
+    flat[key] = Array.isArray(val) ? val.join('; ') : val;
+  });
+  return flat;
+}
+
+function buildPayload(isComplete) {
+  var flat = flattenAnswers();
+  flat.session_id = sessionId;
+  flat.completed = isComplete || false;
+  // Convert scale values to integers for the DB
+  ['shaded_streets','lagoon_health','native_familiarity','ordinance_support'].forEach(function(k) {
+    if (flat[k] !== undefined && flat[k] !== '') flat[k] = parseInt(flat[k], 10);
+    else delete flat[k];
+  });
+  return flat;
+}
+
+var saveTimer = null;
+function sendToSupabase() {
+  // Debounce: save at most once per 2 seconds during active answering
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(function() { doSendToSupabase(false); }, 2000);
+}
+
+function doSendToSupabase(isComplete) {
+  var payload = buildPayload(isComplete);
+  fetch(SUPABASE_URL + '/rest/v1/survey_responses', {
+    method: 'POST',
+    headers: {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'resolution=merge-duplicates'
+    },
+    body: JSON.stringify(payload)
+  }).catch(function(err) { console.error('Save error:', err); });
+}
+
+function submitSurvey() {
+  if (saveTimer) clearTimeout(saveTimer);
+  submitted = true;
+  localStorage.setItem('survey_submitted', 'true');
+  localStorage.removeItem('survey_answers_temp');
+  doSendToSupabase(true);
+}
+
+function startOver() {
+  submitted = false;
+  answers = {};
+  sessionId = generateId();
+  localStorage.removeItem('survey_submitted');
+  localStorage.removeItem('survey_answers_temp');
+  // Rebuild the entire survey
+  var container = document.getElementById('surveyContainer');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  currentSlide = 0;
+  buildSlides();
+  updateUI();
+  // Re-activate first slide
+  var slides = document.querySelectorAll('.slide');
+  for (var i = 0; i < slides.length; i++) slides[i].classList.remove('active');
+  slides[0].classList.add('active');
+}
+
+// ─── EVENT LISTENERS ────────────────────────────────
+document.getElementById('btnNext').addEventListener('click', nextSlide);
+document.getElementById('btnPrev').addEventListener('click', prevSlide);
+
+var touchStartY = 0;
+document.addEventListener('touchstart', function(e) { touchStartY = e.touches[0].clientY; });
+document.addEventListener('touchend', function(e) {
+  var diff = touchStartY - e.changedTouches[0].clientY;
+  if (Math.abs(diff) > 60) {
+    if (diff > 0) nextSlide();
+    else prevSlide();
+  }
+});
+
+// ─── INIT ───────────────────────────────────────────
+// If they previously submitted, jump straight to outro
+if (submitted) {
+  currentSlide = questions.length - 1;
+}
+buildSlides();
+if (submitted) {
+  var slides = document.querySelectorAll('.slide');
+  for (var i = 0; i < slides.length; i++) slides[i].classList.remove('active');
+  slides[questions.length - 1].classList.add('active');
+}
+updateUI();
+</script>
+
+</body>
+</html>
