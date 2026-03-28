@@ -259,6 +259,7 @@ var questions = [
     id: 'barriers', type: 'multi',
     title: 'What challenges prevent you from planting native plants?',
     subtitle: 'Select all that apply.',
+    showIf: function() { return answers.native_use === 'Yes, I have some native plants' || answers.native_use === "No, I don't have any native plants that I'm aware of"; },
     choices: [
       'I am not familiar with native plants',
       'I kept what the prior owner/developer planted',
