@@ -498,7 +498,6 @@ function selectScale(qid, value, btn) {
   for (var i = 0; i < siblings.length; i++) siblings[i].classList.remove('selected');
   btn.classList.add('selected');
   sendToSupabase();
-  setTimeout(function() { nextSlide(); }, 400);
 }
 
 function selectSingle(qid, btn) {
@@ -510,7 +509,6 @@ function selectSingle(qid, btn) {
   for (var i = 0; i < btns.length; i++) btns[i].classList.remove('selected');
   btn.classList.add('selected');
   sendToSupabase();
-  setTimeout(function() { nextSlide(); }, 400);
 }
 
 function selectMulti(qid, btn, exclusiveValue) {
@@ -737,6 +735,8 @@ function buildPayload(isComplete) {
 }
 
 var saveTimer = null;
+var rowCreated = false;
+
 function sendToSupabase() {
   // Debounce: save at most once per 2 seconds during active answering
   if (saveTimer) clearTimeout(saveTimer);
@@ -745,16 +745,46 @@ function sendToSupabase() {
 
 function doSendToSupabase(isComplete) {
   var payload = buildPayload(isComplete);
-  fetch(SUPABASE_URL + '/rest/v1/survey_responses', {
-    method: 'POST',
+
+  if (!rowCreated) {
+    // First save: INSERT
+    fetch(SUPABASE_URL + '/rest/v1/survey_responses', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    }).then(function(res) {
+      if (res.ok || res.status === 201) {
+        rowCreated = true;
+      } else if (res.status === 409) {
+        // Row already exists (e.g. page refresh), switch to PATCH
+        rowCreated = true;
+        doPatch(payload);
+      }
+    }).catch(function(err) { console.error('Insert error:', err); });
+  } else {
+    // Subsequent saves: PATCH by session_id
+    doPatch(payload);
+  }
+}
+
+function doPatch(payload) {
+  var sid = payload.session_id;
+  delete payload.session_id; // don't try to update the key
+  fetch(SUPABASE_URL + '/rest/v1/survey_responses?session_id=eq.' + encodeURIComponent(sid), {
+    method: 'PATCH',
     headers: {
       'apikey': SUPABASE_ANON_KEY,
       'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
       'Content-Type': 'application/json',
-      'Prefer': 'resolution=merge-duplicates'
+      'Prefer': 'return=minimal'
     },
     body: JSON.stringify(payload)
-  }).catch(function(err) { console.error('Save error:', err); });
+  }).catch(function(err) { console.error('Update error:', err); });
 }
 
 function submitSurvey() {
